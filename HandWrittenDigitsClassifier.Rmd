@@ -1,0 +1,216 @@
+---
+title: "Handwritten Digits classifier with SVD"
+author: "Jenish Dhaduk"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(MASS)
+library(knitr)
+library(pracma)
+```
+
+```{r}
+traininginput <- read.csv('trainInput.csv',stringsAsFactors = F,check.names = F, header=F)
+trainingoutput <- read.csv('trainOutput.csv',stringsAsFactors = F,check.names = F, header=F)
+
+training<-rbind(traininginput,trainingoutput)
+
+```
+
+```{r}
+print("Count per digit in Main matrix :")
+
+for (i in 0:9)
+  {
+  print(i)
+  count=0
+  for (j in 1:ncol(training)) {
+    if(training[257,j] == i)
+    {
+      count<-count+1
+    }
+  }
+  print(count)
+}
+```
+```{r}
+# Form a matrix A for each digit, such that each rowin A represents an image of that digit. (You will have 10 A’s).
+matrixa <- function(digit)
+{
+  a=c()
+  for (j in 1:ncol(training)) {
+    if(training[257,j] == digit)
+    {
+      a[length(a)+1]<-j
+    }
+  }
+  matrixa<-subset(training, select = a)
+  matrixa<-head(matrixa,-1)
+  matrixa<-t(matrixa)
+return(matrixa)
+  }
+
+print("verfication of the count for each dighit after seperating a matrix")
+
+A0=matrixa(0)
+nrow(A0)
+A1=matrixa(1)
+nrow(A1)
+A2=matrixa(2)
+nrow(A2)
+A3=matrixa(3)
+nrow(A3)
+A4=matrixa(4)
+nrow(A4)
+A5=matrixa(5)
+nrow(A5)
+A6=matrixa(6)
+nrow(A6)
+A7=matrixa(7)
+nrow(A7)
+A8=matrixa(8)
+nrow(A8)
+A9=matrixa(9)
+nrow(A9)
+
+```
+
+```{r}
+#Determine the singular value decomposition foreach A. (Rightsingularvectors Viare an orthogonal basis in the image space of that digit.We will refer to the right singular vectors as “singular images.”) You should get 10 sets of singular images, one for each digit.
+
+fun_right_singular_vector = function(m)
+  {
+  cx = t(m) %*% m
+   rsv= eigen(cx)$vectors
+     return(rsv)
+}
+
+#SINGULAR_IMAGES_SET= SIS (10 sets)
+SIS_matrix_digit0  = fun_right_singular_vector(A0)
+SIS_matrix_digit1  = fun_right_singular_vector(A1)
+SIS_matrix_digit2  = fun_right_singular_vector(A2)
+SIS_matrix_digit3  = fun_right_singular_vector(A3)
+SIS_matrix_digit4  = fun_right_singular_vector(A4)
+SIS_matrix_digit5  = fun_right_singular_vector(A5)
+SIS_matrix_digit6  = fun_right_singular_vector(A6)
+SIS_matrix_digit7  = fun_right_singular_vector(A7)
+SIS_matrix_digit8  = fun_right_singular_vector(A8)
+SIS_matrix_digit9  = fun_right_singular_vector(A9)
+
+
+```
+
+
+
+```{r}
+#Express test images as a linear combination of the first k=20singular images of each digit. (This is a least square problem of the form Ax=b).
+
+#ma20 matrices are with the first k=20 singular values of each digit
+ma20_0=SIS_matrix_digit0[,1:20]
+ma20_1=SIS_matrix_digit1[,1:20]
+ma20_2=SIS_matrix_digit2[,1:20]
+ma20_3=SIS_matrix_digit3[,1:20]
+ma20_4=SIS_matrix_digit4[,1:20]
+ma20_5=SIS_matrix_digit5[,1:20]
+ma20_6=SIS_matrix_digit6[,1:20]
+ma20_7=SIS_matrix_digit7[,1:20]
+ma20_8=SIS_matrix_digit8[,1:20]
+ma20_9=SIS_matrix_digit9[,1:20]
+
+#list of 10 matrices with the first k=20 singular values of each digit (Ax=b) A
+List_of_all_ma20 <- list(ma20_0,ma20_1,ma20_2,ma20_3,ma20_4,ma20_5,ma20_6,ma20_7,ma20_8,ma20_9)
+
+
+# Reading the test file here
+testinginput <- read.csv('testInput.csv',stringsAsFactors = F,check.names = F, header=F)
+testingoutput <- read.csv('testOutput.csv',stringsAsFactors = F,check.names = F, header=F)
+
+#Test Images
+matrix_test <- as.matrix(testinginput,ncol=256,byrow=FALSE)
+
+#x0,x1,x2,x3.....(Ax=b) x
+for(i in 1:length(List_of_all_ma20)){ 
+x<- paste("x", (i-1), sep = "") 
+  assign(x, apply(matrix_test, 2, function(test_col) t(t(test_col)%*%List_of_all_ma20[[i]])))
+}
+
+
+#Linear combinations (Ax=b) b
+lc_digit0 = ma20_0%*%x0
+lc_digit1 = ma20_1%*%x1
+lc_digit2 = ma20_2%*%x2
+lc_digit3 = ma20_3%*%x3
+lc_digit4 = ma20_4%*%x4
+lc_digit5 = ma20_5%*%x5
+lc_digit6 = ma20_6%*%x6
+lc_digit7 = ma20_7%*%x7
+lc_digit8 = ma20_8%*%x8
+lc_digit9 = ma20_9%*%x9
+```
+
+
+
+```{r}
+
+
+#testing image's disatnce
+distance <- apply(matrix_test, 2, function(calculatedis) norm(calculatedis,'2'))
+#storing as matrix
+dist_matrix<- as.matrix(distance,ncol=1)
+
+# Compute the distance between test images and their least square approximations.
+distance_digit0_test=apply(lc_digit0,2, function(dis_0) norm(dis_0,'2')) 
+distance_digit1_test=apply(lc_digit1,2, function(dis_1) norm(dis_1,'2')) 
+distance_digit2_test=apply(lc_digit2,2, function(dis_2) norm(dis_2,'2')) 
+distance_digit3_test=apply(lc_digit3,2, function(dis_3) norm(dis_3,'2')) 
+distance_digit4_test=apply(lc_digit4,2, function(dis_4) norm(dis_4,'2')) 
+distance_digit5_test=apply(lc_digit5,2, function(dis_5) norm(dis_5,'2')) 
+distance_digit6_test=apply(lc_digit6,2, function(dis_6) norm(dis_6,'2')) 
+distance_digit7_test=apply(lc_digit7,2, function(dis_7) norm(dis_7,'2')) 
+distance_digit8_test=apply(lc_digit8,2, function(dis_8) norm(dis_8,'2')) 
+distance_digit9_test=apply(lc_digit9,2, function(dis_9) norm(dis_9,'2'))
+
+```
+
+
+```{r}
+
+# Classify each test image to be the digit corresponding to the smallest residual. 
+e_digit0<- abs(dist_matrix - as.matrix(distance_digit0_test,nrow=1))
+e_digit1<- abs(dist_matrix - as.matrix(distance_digit1_test,nrow=1))
+e_digit2<- abs(dist_matrix - as.matrix(distance_digit2_test,nrow=1))
+e_digit3<- abs(dist_matrix - as.matrix(distance_digit3_test,nrow=1))
+e_digit4<- abs(dist_matrix - as.matrix(distance_digit4_test,nrow=1))
+e_digit5<- abs(dist_matrix - as.matrix(distance_digit5_test,nrow=1))
+e_digit6<- abs(dist_matrix - as.matrix(distance_digit6_test,nrow=1))
+e_digit7<- abs(dist_matrix - as.matrix(distance_digit7_test,nrow=1))
+e_digit8<- abs(dist_matrix - as.matrix(distance_digit8_test,nrow=1)) 
+e_digit9<- abs(dist_matrix - as.matrix(distance_digit9_test,nrow=1))  
+ 
+
+all_combined<-cbind(e_digit0,e_digit1,e_digit2,e_digit3,e_digit4,e_digit5,e_digit6,e_digit7,e_digit8,e_digit9)
+
+# the predicted digit vales are stored here
+digit_predicted <- apply(all_combined,1,which.min) -1
+
+correct=0
+
+for(i in 1:2007)
+{
+  if(testingoutput[i]==digit_predicted[i])
+  {
+    correct=correct+1
+  }
+}
+# the overall classification rate is calculated by divinding the correct prediction by total output values that is 2007
+ 
+ClassificationRate=correct/length(testingoutput)
+print("the overall Classification rate is:")
+print(ClassificationRate)
+
+```
+
